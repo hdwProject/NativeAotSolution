@@ -16,7 +16,7 @@ namespace Utility
         private static readonly JsonSerializerOptions? CustomJsonSerializerOptions = new()
         {
             // 使用自定义格式（如 "yyyy-MM-dd HH:mm:ss"）
-            Converters = { new CustomDateTimeConverter() },
+            Converters = { new DateTimeToStringConverter() },
 
             // 整齐打印
             WriteIndented = true,
@@ -88,40 +88,6 @@ namespace Utility
         public static TValue? DeserializeObject<TValue>(this string json)
         {
             return string.IsNullOrEmpty(json) ? default : JsonSerializer.Deserialize<TValue>(json, CustomJsonSerializerOptions);
-        }
-    }
-
-    /// <summary>
-    /// 自定义日期时间转换器
-    /// </summary>
-    public class CustomDateTimeConverter : JsonConverter<DateTime>
-    {
-        /// <summary>
-        /// 反序列化日期时间
-        /// </summary>
-        /// <param name="reader"></param>
-        /// <param name="typeToConvert"></param>
-        /// <param name="options"></param>
-        /// <returns></returns>
-        public override DateTime Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-        {
-            // 这里可以添加反序列化的逻辑，但通常我们只关注序列化
-            if (reader.TokenType != JsonTokenType.String)
-                return reader.GetDateTime();
-            return DateTime.TryParse(reader.GetString(), out var dt) ? dt : reader.GetDateTime();
-        }
-
-        /// <summary>
-        /// 序列化日期时间
-        /// </summary>
-        /// <param name="writer"></param>
-        /// <param name="value"></param>
-        /// <param name="options"></param>
-        public override void Write(Utf8JsonWriter writer, DateTime value, JsonSerializerOptions options)
-        {
-            // 自定义日期时间格式
-            var formattedDate = value.ToString("yyyy-MM-dd HH:mm:ss"); // 例如："2023-04-01 12:30:00"
-            writer.WriteStringValue(formattedDate);
         }
     }
 }

@@ -8,7 +8,7 @@
         /// <summary>
         /// 卡种Id
         /// </summary>
-        public long CpkId { get; set; }
+        public long? CpkId { get; set; }
 
         /// <summary>
         /// 卡成本单价

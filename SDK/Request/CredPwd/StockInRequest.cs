@@ -40,7 +40,7 @@
         /// <summary>
         /// 注：卡种开启到期日时必填，其他忽略
         /// </summary>
-        public DateTime ExpireTime { get; set; }
+        public DateTime? ExpireTime { get; set; }
       
     }
 

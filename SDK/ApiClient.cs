@@ -1,4 +1,5 @@
 ﻿using System.Net;
+using System.Reflection;
 using Utility;
 
 namespace SDK
@@ -65,26 +66,28 @@ namespace SDK
                 return dic;
             }
 
-            var jsonString = obj.SerializeString();
-            dic = jsonString.DeserializeObject<Dictionary<string, object>>() ?? new Dictionary<string, object>();
-            //var type = obj.GetType();
-            //// 获取所有实例属性（包括非公共）
-            //var properties = type.GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-            //foreach (var prop in properties)
-            //{
-            //    try
-            //    {
-            //        var value = prop.GetValue(obj);
-            //        if (value != null)
-            //        {
-            //            dic.Add(FirstCharToLower(prop.Name), value.TryString());
-            //        }
-            //    }
-            //    catch (Exception ex)
-            //    {
-            //        Console.WriteLine($"读取 {prop.Name} 失败: {ex.Message}");
-            //    }
-            //}
+            //var jsonString = obj.SerializeString();
+            //dic = jsonString.DeserializeObject<Dictionary<string, object>>() ?? new Dictionary<string, object>();
+
+            var type = obj.GetType();
+            // 获取所有实例属性（包括非公共）
+            var properties = type.GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+            foreach (var prop in properties)
+            {
+                try
+                {
+                    var value = prop.GetValue(obj);
+                    if (value != null)
+                    {
+                        dic.Add(FirstCharToLower(prop.Name), value.TryString());
+                    }
+                }
+                catch (Exception ex)
+                {
+                    SerilogHelper.Error(ex, ex.Message);
+                    //Console.WriteLine($"读取 {prop.Name} 失败: {ex.Message}");
+                }
+            }
 
             var sign = SecurityHelper.AgisoSign(dic);
             //注意这里Sign的S是大写的

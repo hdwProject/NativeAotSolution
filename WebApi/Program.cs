@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.Authentication.Cookies;
+using Serilog;
 using System.Reflection;
 using System.Text.Json;
+using Serilog.Events;
 using Utility;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -8,6 +10,26 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 
 //builder.Services.AddControllers();
+
+#region 配置Serilog
+
+Log.Logger = new LoggerConfiguration()
+    .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+    .Enrich.FromLogContext()
+    .WriteTo.Console()
+    .WriteTo.File("logs/log-.txt", restrictedToMinimumLevel: LogEventLevel.Information, rollingInterval: RollingInterval.Day, rollOnFileSizeLimit: true)
+    .CreateLogger();
+builder.Services.AddSerilog();
+builder.Host.UseSerilog();
+
+//builder.Services.AutofacConfigureContainer(builder, _plugins, typeof(Controller), typeof(IDenpendency), typeof(Program));
+
+
+
+//var user = "werwer";
+//SerilogHelper.Information("sdfsdf {@user}{@kk} asdasdasda", user,"kk sdfsdf");
+
+#endregion
 
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 //builder.Services.AddOpenApi();
@@ -65,7 +87,7 @@ builder.Services.AddAuthorizationBuilder().AddPolicy(AuthData.Super, policy => p
 builder.Services.AddControllersWithViews().AddJsonOptions(option =>
 {
     //添加时间格式化，解决接口使用OK方法的时候，时间格式问题
-    option.JsonSerializerOptions.Converters.Add(new CustomDateTimeConverter());
+    option.JsonSerializerOptions.Converters.Add(new DateTimeToStringConverter());
 });
 
 var app = builder.Build();
@@ -96,5 +118,5 @@ app.MapControllerRoute(
         defaults: new { controller = "Home", action = "get" })
     .RequireAuthorization(AuthData.Super);
 
-
+SerilogHelper.Information("Api站点启动成功");
 app.Run();
