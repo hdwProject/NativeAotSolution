@@ -6,6 +6,7 @@ using Utility;
 using SDK.Request.CredPwd;
 using System.Net;
 using SDK.Enum;
+using System.Security.Cryptography;
 
 
 namespace WebApi.Controllers
@@ -28,8 +29,8 @@ namespace WebApi.Controllers
             {
                 var req = new CardPwdRequest
                 {
-                    FilterName = "",
-                    ClassId = 60234,//这个是卡种分类编号，在阿奇索平台上是没有展示，需要浏览器按F12查看接口返回的接口数据（IdNo）字段，60234是开发测试分类的编号
+                    FilterName = string.Empty,
+                    ClassId = null,//这个是卡种分类编号，在阿奇索平台上是没有展示，需要浏览器按F12查看接口返回的接口数据（IdNo）字段，60234是开发测试分类的编号
                 };
 
                 var dic = await ApiClient.GetDictionaryByObject(req);
@@ -50,7 +51,7 @@ namespace WebApi.Controllers
         /// </summary>
         /// <returns></returns>
         [HttpGet("HandPick")]
-        public async Task<IActionResult> HandPick()
+        public async Task<IActionResult> HandPick(int? num)
         {
             const string url = "http://gw.api.agiso.com/acpr/CardPwd/HandPick";
             try
@@ -58,10 +59,10 @@ namespace WebApi.Controllers
                 var req = new HandPickRequest
                 {
                     CpkId = (int)CpkIdEnum.唯一卡种编号,
-                    Num = 1,
+                    Num = num,
                     HandPickOrderId = Guid.NewGuid().ToString("n"),
                     Buyer = "空军一号",
-                    BuildCpd = true,
+                    BuildCpd = false,
                     UsePriority = true,
                 };
 
@@ -89,15 +90,22 @@ namespace WebApi.Controllers
             const string url = "http://gw.api.agiso.com/acpr/CardPwd/StockIn";
             try
             {
-                var dataList = new List<Data700And820And840>(); 
-                for (var i = 0; i < 10; i++)
+                var dataList = Enumerable.Range(1, 100000).Select(_ => new Data700And820And840()).ToList();
+
+                // 并行处理每个元素
+                Parallel.ForEach(dataList, num =>
                 {
-                    dataList.Add(new Data700And820And840
-                    {
-                        CardNo = Guid.NewGuid().ToString("n"),
-                        Pwd = Guid.NewGuid().ToString("n")
-                    });
+                    num.Pwd = GenerateUniquePassword(8).Result;
+                    num.CardNo = GenerateUniqueAccount(8).Result;
+                });
+
+                var listGroup = dataList.GroupBy(x => x.CardNo).Select(x=> new { x.Key, Count = x.Count()}).ToList();
+                var cardNoCount = listGroup.Count(x => x.Count > 1);
+                if (cardNoCount > 1)
+                {
+                    return BadRequest("卡号重复");
                 }
+
 
                 //创建入库批次号,一个批次号失效的时间为半个小时，需要使用的话，重新请求
                 var batchId = await CreateStockInBatchId(new CreateStockInBatchIdRequest
@@ -107,7 +115,7 @@ namespace WebApi.Controllers
                     Summary = "接口创建入库批次号(唯一卡种)",
                 });
 
-                if (!string.IsNullOrWhiteSpace(batchId))
+                if (string.IsNullOrWhiteSpace(batchId))
                 {
                     return BadRequest("批次号创建失败");
                 }
@@ -115,7 +123,7 @@ namespace WebApi.Controllers
                 var req = new StockInRequest
                 {
                     StockInBatchId = batchId,
-                    Data = JsonSerializer.Serialize(dataList),//这里必须要使用JsonSerializer.Serialize，因为不能使用驼峰命名,否则会接口返回的是null
+                    Data = JsonSerializer.Serialize(dataList),//这里必须要使用JsonSerializer.Serialize，因为不能使用驼峰命名,否则会接口返回的是 null
                     ExpireTime = DateTime.Now.AddDays(200)
                 };
 
@@ -181,7 +189,7 @@ namespace WebApi.Controllers
                     Summary = "接口创建入库批次号(图片卡种)",
                 });
 
-                if (!string.IsNullOrWhiteSpace(batchId))
+                if (string.IsNullOrWhiteSpace(batchId))
                 {
                     return BadRequest("批次号创建失败");
                 }
@@ -243,6 +251,42 @@ namespace WebApi.Controllers
         }
 
         /// <summary>
+        /// 查询开放平台余额
+        /// </summary>
+        /// <returns></returns>
+        [HttpGet("QueryDeposit")]
+        public async Task<IActionResult> QueryDeposit()
+        {
+            const string url = "http://gw.api.agiso.com/open/Bankroll/QueryDeposit";
+            try
+            {
+                var req = new QueryDepositRequest
+                {
+                    AppId = "2025041146459120556"
+                };
+                var dic = await ApiClient.GetDictionaryByObject(req);
+
+                var formDataList = dic.Select(item => new KeyValuePair<string, string?>(item.Key, item.Value.TryString())).ToList();
+
+                var result = await ApiClient.Request<BaseResponse<decimal>>(url, HttpMethod.Post, formDataList);
+
+                var testQuot = new
+                {
+                    str = $"new List<string>'name',{DateTime.Now:yyyy-MM-dd HH:mm:ss}",
+                    str2 = "<string>" + result + "</string>",
+                };
+                var tt = testQuot.SerializeString();
+                return Ok(tt);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        #region 私有方法
+
+        /// <summary>
         /// 根据不同的请求参数，创建入库批次号
         /// 1，唯一卡种编号：1987073
         /// 2，图片卡种编号：2002359</summary>
@@ -253,13 +297,6 @@ namespace WebApi.Controllers
             const string url = "http://gw.api.agiso.com/acpr/CardPwd/CreateStockInBatchId";
             try
             {
-                //var req = new CreateStockInBatchIdRequest
-                //{
-                //    CpkId = 2002359,//图片卡种编号，1987073(唯一卡种编号),
-                //    Price = 45,
-                //    Summary = "接口创建入库批次号(图片卡种)",
-                //};
-
                 var dic = await ApiClient.GetDictionaryByObject(request);
 
                 var formDataList = dic.Select(item => new KeyValuePair<string, string?>(item.Key, item.Value.TryString())).ToList();
@@ -269,8 +306,94 @@ namespace WebApi.Controllers
             }
             catch (Exception ex)
             {
+                SerilogHelper.Error(ex, "创建入库批次号出错，" + ex.Message);
                 return string.Empty;
             }
         }
+
+        /// <summary>
+        /// 根据 Take 参数生成不重复密码
+        /// </summary>
+        /// <returns></returns>
+        /// <exception cref="InvalidOperationException"></exception>
+        private static async Task<string> GenerateUniquePassword(int take)
+        {
+            try
+            {
+                const string allowedChars = "ABCDEFGHIJKLMNPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz123456789!@#$%^&*";
+
+                var randomNumber = RandomNumberGenerator.Create();
+                // 生成一个包含所有可能字符的数组
+                var uniqueChars = allowedChars.Distinct().ToArray();
+                if (uniqueChars.Length < take)
+                    throw new InvalidOperationException($"字符池不足以生成{take}位不重复密码。");
+                // 使用加密随机数生成器进行洗牌
+                for (var i = uniqueChars.Length - 1; i > 0; i--)
+                {
+                    var randomBytes = new byte[4];
+                    randomNumber.GetBytes(randomBytes);
+                    var j = Math.Abs(BitConverter.ToInt32(randomBytes, 0)) % (i + 1);
+                    (uniqueChars[i], uniqueChars[j]) = (uniqueChars[j], uniqueChars[i]);
+                }
+
+                var password = new string(uniqueChars.Take(take).ToArray());
+                return await Task.FromResult(password);
+            }
+            catch (Exception)
+            {
+                //如果有错误，则返回需要执行位数的密码
+                var tempPassword = string.Empty;
+                for (var i = 0; i < take; i++)
+                {
+                    tempPassword += "8";
+                }
+                return tempPassword;
+            }
+
+        }
+
+        /// <summary>
+        /// 根据 Take 参数生成不重复账号
+        /// </summary>
+        /// <returns></returns>
+        /// <exception cref="InvalidOperationException"></exception>
+        private static async Task<string> GenerateUniqueAccount(int take)
+        {
+            try
+            {
+                const string allowedChars = "ABCDEFGHIJKLMNPQRSTUVWXYZ123456789";
+
+                var randomNumber = RandomNumberGenerator.Create();
+                // 生成一个包含所有可能字符的数组
+                var uniqueChars = allowedChars.Distinct().ToArray();
+                if (uniqueChars.Length < take)
+                    throw new InvalidOperationException($"字符池不足以生成{take}位不重复密码。");
+                // 使用加密随机数生成器进行洗牌
+                for (var i = uniqueChars.Length - 1; i > 0; i--)
+                {
+                    var randomBytes = new byte[4];
+                    randomNumber.GetBytes(randomBytes);
+                    var j = Math.Abs(BitConverter.ToInt32(randomBytes, 0)) % (i + 1);
+                    (uniqueChars[i], uniqueChars[j]) = (uniqueChars[j], uniqueChars[i]);
+                }
+
+                var password = new string(uniqueChars.Take(take).ToArray());
+                return await Task.FromResult(password);
+            }
+            catch (Exception)
+            {
+                //如果有错误，则返回需要执行位数的密码
+                var tempPassword = string.Empty;
+                for (var i = 0; i < take; i++)
+                {
+                    tempPassword += "A";
+                }
+                return tempPassword;
+            }
+
+        }
+
+        #endregion
+
     }
 }

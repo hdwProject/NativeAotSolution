@@ -19,7 +19,7 @@ namespace SDK
         /// <param name="headerDic">头部参数</param>
         /// <returns></returns>
         /// <exception cref="Exception">异常信息</exception>
-        public static async Task<T?> Request<T>(string url, HttpMethod method, IReadOnlyList<KeyValuePair<string, string>> formData, Dictionary<string, object>? headerDic = null)
+        public static async Task<T?> Request<T>(string url, HttpMethod method, List<KeyValuePair<string, string?>> formData, Dictionary<string, object>? headerDic = null)
         {
             try
             {
@@ -45,10 +45,13 @@ namespace SDK
                     return result.DeserializeObject<T?>();
                 }
 
-                throw new Exception($"请求失败，状态码：{response.StatusCode}");
+                SerilogHelper.Information($"请求失败，状态码：{response.StatusCode}");
+                return default;
+                
             }
             catch (Exception e)
             {
+                SerilogHelper.Error(e, "ApiClient执行Request失败，失败信息：" + e.Message);
                 throw new Exception("请求失败：" + e);
             }
         }
@@ -69,6 +72,8 @@ namespace SDK
             //var jsonString = obj.SerializeString();
             //dic = jsonString.DeserializeObject<Dictionary<string, object>>() ?? new Dictionary<string, object>();
 
+            #region 使用反射获取对象属性，因为JsonSerializer底层使用了反射，所以性能上会有点差
+
             var type = obj.GetType();
             // 获取所有实例属性（包括非公共）
             var properties = type.GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
@@ -88,6 +93,8 @@ namespace SDK
                     //Console.WriteLine($"读取 {prop.Name} 失败: {ex.Message}");
                 }
             }
+
+            #endregion
 
             var sign = SecurityHelper.AgisoSign(dic);
             //注意这里Sign的S是大写的
