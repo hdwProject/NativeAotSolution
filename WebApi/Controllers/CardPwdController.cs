@@ -90,7 +90,9 @@ namespace WebApi.Controllers
             const string url = "http://gw.api.agiso.com/acpr/CardPwd/StockIn";
             try
             {
-                var dataList = Enumerable.Range(1, 100000).Select(_ => new Data700And820And840()).ToList();
+                //var s = new string('B', 20);
+
+                var dataList = Enumerable.Range(1, 100).Select(_ => new Data700And820And840()).ToList();
 
                 // 并行处理每个元素
                 Parallel.ForEach(dataList, num =>
@@ -342,12 +344,7 @@ namespace WebApi.Controllers
             catch (Exception)
             {
                 //如果有错误，则返回需要执行位数的密码
-                var tempPassword = string.Empty;
-                for (var i = 0; i < take; i++)
-                {
-                    tempPassword += "8";
-                }
-                return tempPassword;
+                return new string('8', take);
             }
 
         }
@@ -382,15 +379,8 @@ namespace WebApi.Controllers
             }
             catch (Exception)
             {
-                //如果有错误，则返回需要执行位数的密码
-                var tempPassword = string.Empty;
-                for (var i = 0; i < take; i++)
-                {
-                    tempPassword += "A";
-                }
-                return tempPassword;
+                return new string('A', take); 
             }
-
         }
 
         #endregion
