@@ -17,7 +17,9 @@ Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
     .Enrich.FromLogContext()
     .WriteTo.Console()
-    .WriteTo.File("logs/log-.txt", restrictedToMinimumLevel: LogEventLevel.Information, rollingInterval: RollingInterval.Day, rollOnFileSizeLimit: true)
+    .WriteTo.File("logs/log-.txt", restrictedToMinimumLevel: LogEventLevel.Information, rollingInterval: RollingInterval.Day, rollOnFileSizeLimit: true, 
+        outputTemplate: "时间：{Timestamp:yyyy-MM-dd HH:mm:ss.fff} => 级别：{Level:u3}{NewLine}日志信息：{Message}{NewLine}" +
+                        "-------------------------------------------------------------------------------------------------------------------------------------------------------------------{NewLine}")
     .CreateLogger();
 builder.Services.AddSerilog();
 builder.Host.UseSerilog();
