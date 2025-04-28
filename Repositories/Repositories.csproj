@@ -7,10 +7,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="SqlSugarCore" Version="5.1.4.189" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\Entity\Entity.csproj" />
   </ItemGroup>
 

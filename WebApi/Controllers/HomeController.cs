@@ -1,4 +1,5 @@
 ﻿using System.Security.Claims;
+using Autofac.Core;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
@@ -6,21 +7,28 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Services;
+using Services.Admin;
+using Services.User;
 using Utility;
+using Utility.CustomerAttribute;
+using Utility.Globals;
 
 namespace WebApi.Controllers
 {
     [Route("api/[controller]")]
-    //[ApiController]
-    public class HomeController : ControllerBase
+    public class HomeController(AdminService service, IHttpClientFactory httpClientFactory) : BaseController
     {
-        public static readonly UserService UserService = new UserService();
+        //[AutowiredDependencyProperty]
+        //public AdminService AdminService { get; set; }
 
         [HttpGet("Get")]
         public async Task<IActionResult> Get()
         {
+            var client = httpClientFactory.CreateClient();
+            var s = await service.GetUserAsync();
+            var c = AutofacContainerManager.Resolve<AdminService>();
             var adminId = AuthData.AdminIdField;
-            var userInfo = await UserService.GetUserAsync();
+            var userInfo = await service.GetUserAsync();
             return Ok(userInfo);
         }
 
@@ -37,13 +45,12 @@ namespace WebApi.Controllers
             {
                 return Content("请输入密码");
             }
-            var userInfo = await UserService.GetUserAsync();
+            var userInfo = await service.GetUserAsync();
             await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
                 new ClaimsPrincipal(new ClaimsIdentity(
                     [
                         new Claim(AuthData.AdminIdField, Guid.NewGuid().ToString("n")),
                         new Claim(AuthData.AdminNameField, "e34dfggde25441"),
-                        new Claim(userInfo.EmailAddress, "1234564478454sfsersdfsff"),
                         new Claim("Role", "Admin"),
                         new Claim(userInfo.Email, "Admin@qq.com"),
                         new Claim("ImageTop", "Admin.jpg"),

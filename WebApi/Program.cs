@@ -1,15 +1,24 @@
 ﻿using Microsoft.AspNetCore.Authentication.Cookies;
 using Serilog;
 using System.Reflection;
-using System.Text.Json;
 using Serilog.Events;
 using Utility;
+using Autofac;
+using Autofac.Extensions.DependencyInjection;
+using Microsoft.AspNetCore.Mvc;
+using Services;
+using Microsoft.AspNetCore.Mvc.Controllers;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Services.User;
+using WebApi;
+using Autofac.Core;
+using SqlSugar;
+using Utility.Globals;
+using System.Configuration;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
 
-//builder.Services.AddControllers();
 
 #region 配置Serilog
 
@@ -36,16 +45,6 @@ builder.Host.UseSerilog();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 //builder.Services.AddOpenApi();
 
-builder.Services.AddTransient<IHttpContextAccessor, HttpContextAccessor>();
-builder.Services.AddTransient<AuthData>();
-
-//builder.Services.AutoRegisterServices(Assembly.GetExecutingAssembly(), ServiceLifetime.Singleton);
-
-// 控制器自动发现 + 属性注入
-//builder.Services.AddControllers().ConfigureApplicationPartManager(manager =>
-//{
-//    manager.FeatureProviders.Add(new AutoInjectControllerFeatureProvider());
-//});
 
 builder.Services.AddCors(options =>
 {
@@ -73,7 +72,7 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
     };
 });
 
-builder.Services.AddAuthorizationBuilder().AddPolicy(AuthData.Super, policy => policy.RequireRole(AuthData.Super));
+builder.Services.AddHttpClient();
 
 //builder.Services.AddAuthorization(options =>
 //{
@@ -92,7 +91,55 @@ builder.Services.AddControllersWithViews().AddJsonOptions(option =>
     option.JsonSerializerOptions.Converters.Add(new DateTimeToStringConverter());
 });
 
+// Add services to the container.这里必须要加上AddControllersAsServices方法，否则属性注入会失败
+//builder.Services.AddControllers();
+
+GlobalContext.SystemConfig = builder.Configuration.GetSection("SystemConfig").Get<SystemConfig>() ?? new SystemConfig();
+GlobalContext.Configuration = builder.Configuration;
+GlobalContext.Services = builder.Services;
+
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddTransient<AuthData>();
+builder.Services.AddTransient<IHttpContextAccessor, HttpContextAccessor>();
+
+//builder.Services.Replace(ServiceDescriptor.Transient<IControllerActivator, ServiceBasedControllerActivator>());
+// 将Controller加入到Services中，这样写上面的代码就可以省略了,
+builder.Services.AddControllers();//.AddControllersAsServices();
+
+builder.Host.UseServiceProviderFactory(new AutofacServiceProviderFactory()).ConfigureContainer<ContainerBuilder>(options =>
+{
+    options.RegisterModule(new RegisterAutofacModule());
+    options.Register(_ =>
+    {
+        var config = new ConnectionConfig
+        {
+            ConnectionString = GlobalContext.SystemConfig.DBConnectionString,
+            DbType = DbType.Sqlite,
+            IsAutoCloseConnection = true,
+            InitKeyType = InitKeyType.Attribute,
+            MoreSettings = new ConnMoreSettings
+            {
+                SqliteCodeFirstEnableDefaultValue = true, //启用默认值
+                SqliteCodeFirstEnableDropColumn = true, //只支持.net core
+                SqliteCodeFirstEnableDescription = true //启用备注
+            }
+        };
+        return new SqlSugarScope(config);
+    }).AsSelf().As<ISqlSugarClient>().SingleInstance(); // 或者使用SingleInstance(),  
+
+    //options.AutofacConfigureContainer(["Services"], typeof(Controller), typeof(IDependency), typeof(Program));
+    //MyServiceCollectionExtensions.AutofacConfigureContainer(options, ["Services"], typeof(Controller), typeof(IDependency), typeof(Program));
+    //options.AutofacConfigureContainer(["Services"], typeof(ControllerBase), typeof(IDependency), typeof(Program));
+});
+
+
+
+//初始化雪花算法ID
+YitterHelper.InitIdHelper();
+
 var app = builder.Build();
+
+AutofacContainerManager.InitContainer(app.Services.GetAutofacRoot()); 
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -109,16 +156,8 @@ app.UseHttpsRedirection();
 //app.MapControllers();
 
 
-//app.MapControllerRoute(
-//        name: "default",
-//        pattern: "api/{controller=Home}/{action=Index}/{id?}")
-//    .RequireAuthorization();
+app.MapControllerRoute(name: "default", pattern: "api/{controller=Home}/{action=Index}/{id?}");
 
-app.MapControllerRoute(
-        name: "default",
-        pattern: "api",
-        defaults: new { controller = "Home", action = "get" })
-    .RequireAuthorization(AuthData.Super);
 
 SerilogHelper.Information("Api站点启动成功");
 app.Run();

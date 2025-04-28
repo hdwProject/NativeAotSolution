@@ -2,7 +2,6 @@
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Services;
 using System.Diagnostics;
 using System.Security.Claims;
 using Utility;
@@ -11,19 +10,18 @@ using System.Linq;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Services.Admin;
+using Services.User;
 
 namespace WebAppMvc.Controllers
 {
-    public class HomeController : Controller
+    public class HomeController(ILogger<HomeController> logger) : Controller
     {
-        private readonly ILogger<HomeController> _logger;
+        private readonly ILogger<HomeController> _logger = logger;
 
-        public HomeController(ILogger<HomeController> logger)
-        {
-            _logger = logger;
-        }
-        public static readonly UserService UserService = new UserService();
-        
+        public UserService UserService { get; set; }
+
+        [AllowAnonymous]
         public async Task<IActionResult> Get()
         {
             var adminId = AuthData.AdminIdField;
@@ -67,7 +65,6 @@ namespace WebAppMvc.Controllers
                     [
                         new Claim(AuthData.AdminIdField, Guid.NewGuid().ToString("n")),
                         new Claim(AuthData.AdminNameField, "e34dfggde25441"),
-                        new Claim(userInfo.EmailAddress, "1234564478454sfsersdfsff"),
                         new Claim("Role", "Admin"),
                         new Claim(userInfo.Email, "Admin@qq.com"),
                         new Claim("ImageTop", "Admin.jpg"),

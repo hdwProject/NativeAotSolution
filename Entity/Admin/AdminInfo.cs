@@ -1,4 +1,6 @@
-﻿namespace Entity.Admin
+﻿using SqlSugar;
+
+namespace Entity.Admin
 {
     /// <summary>
     /// 管理员信息
@@ -8,6 +10,7 @@
         /// <summary>
         /// 主键Id
         /// </summary>
+        [SugarColumn(IsPrimaryKey = true)]
         public long Id { get; set; }
 
         /// <summary>

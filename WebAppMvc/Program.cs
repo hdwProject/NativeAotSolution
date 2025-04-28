@@ -1,8 +1,13 @@
-﻿using System.Text;
+﻿using System.Reflection;
+using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Unicode;
+using Autofac;
+using Autofac.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Mvc;
+using Services;
 using Utility;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -55,6 +60,28 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
     };
 });
 builder.Services.AddAuthorizationBuilder().AddPolicy(AuthData.Super, policy => policy.RequireRole(AuthData.Super));
+
+
+builder.Host.UseServiceProviderFactory(new AutofacServiceProviderFactory()).ConfigureContainer<ContainerBuilder>(options =>
+{
+
+    //MyServiceCollectionExtensions.AutofacConfigureContainer(options, ["Services"], typeof(Controller), typeof(IDependency), typeof(Program));
+    //MyServiceCollectionExtensions.AutofacConfigureContainer(options, ["Services"], typeof(ControllerBase), typeof(IDependency), typeof(Program));
+
+    //var assemblys4444 = DependencyContext.Default.RuntimeLibraries
+    //    .Where(x => x.Name.Equals("Services"))
+    //    .SelectMany(x => x.GetDefaultAssemblyNames(DependencyContext.Default))
+    //    .Select(Assembly.Load)
+    //    .ToArray();
+
+    //var assembly222s = Assembly.Load("Services");
+
+
+    
+    //Controller中使用属性注入
+    //options.RegisterAssemblyTypes(typeof(Program).Assembly).Where(t => controllerBaseType.IsAssignableFrom(t) && t != controllerBaseType).PropertiesAutowired();
+
+});
 
 var app = builder.Build();
 

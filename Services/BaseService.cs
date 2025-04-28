@@ -1,6 +1,6 @@
 ﻿namespace Services
 {
-    public class BaseService : IDependency
+    public class BaseService 
     {
 
     }

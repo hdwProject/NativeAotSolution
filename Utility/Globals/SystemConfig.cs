@@ -25,17 +25,25 @@ namespace Utility
 		public string AllowCorsSite { get; set; }
 
 		public string DBProvider { get; set; }
+
 		public string DBConnectionString { get; set; }
+
 		public int DBCommandTimeout { get; set; }
 
 		public string CacheProvider { get; set; }
+
 		public string RedisConnectionString { get; set; }
+
 		public string TokenName { get; set; }
 
-		//缓存过期时间
-		public int LoginExpire { get; set; }
+        /// <summary>
+        /// 缓存过期时间
+        /// </summary>
+        public int LoginExpire { get; set; }
 
 		public string HomePage { get; set; }
+
+
 		public bool? LocalLAN { get; set; }
 
 		/// <summary>
@@ -53,7 +61,10 @@ namespace Utility
 		/// </summary>
 		public bool? ReviseSystem { get; set; }
 
-		public int? LoginErrorCount { get; set; }
+        /// <summary>
+        /// 登录错误次数
+        /// </summary>
+        public int? LoginErrorCount { get; set; }
 
         /// <summary>
         /// 多数据库组
@@ -80,29 +91,12 @@ namespace Utility
 		/// </summary>
 		public bool? OpenQuartz { get; set; }
 
-		public DocumentSettings DocumentSettings { get; set; }
-
-
         /// <summary>
         /// 系统版本号
         /// </summary>
         public string SystemVersion { get; set; }
     }
-
-	public class DocumentSettings
-	{
-		public string DocumentTitle { get; set; }
-		public List<GroupOpenApiInfo> GroupOpenApiInfos { get; set; }
-	}
-
-	public class GroupOpenApiInfo
-	{
-		public string Group { get; set; }
-		public string Title { get; set; }
-		public string Description { get; set; }
-		public string Version { get; set; }
-	}
-
+	
 	public class DBConfig
 	{
 		/// <summary>
