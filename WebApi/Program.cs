@@ -142,6 +142,6 @@ app.UseHttpsRedirection();
 
 app.MapControllerRoute(name: "default", pattern: "api/{controller=Home}/{action=Index}/{id?}");
 
-
-SerilogHelper.Information("Api站点启动成功");
+GlobalContext.LogWhenStart(app.Environment);
+//SerilogHelper.Information("Api站点启动成功");
 app.Run();
