@@ -1,11 +1,13 @@
 ﻿using System.Security.Claims;
 using Autofac.Core;
+using Entity.Admin;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+using SDK.Response.AdminInfo;
 using Services;
 using Services.Admin;
 using Services.User;
@@ -16,7 +18,7 @@ using Utility.Globals;
 namespace WebApi.Controllers
 {
     [Route("api/[controller]")]
-    public class HomeController(AdminService service, IHttpClientFactory httpClientFactory) : BaseController
+    public class HomeController(AdminService service) : BaseController
     {
         //[AutowiredDependencyProperty]
         //public AdminService AdminService { get; set; }
@@ -24,12 +26,41 @@ namespace WebApi.Controllers
         [HttpGet("Get")]
         public async Task<IActionResult> Get()
         {
-            var client = httpClientFactory.CreateClient();
-            var s = await service.GetUserAsync();
-            var c = AutofacContainerManager.Resolve<AdminService>();
-            var adminId = AuthData.AdminIdField;
-            var userInfo = await service.GetUserAsync();
-            return Ok(userInfo);
+
+            //var c = AutofacContainerManager.Resolve<AdminService>();
+            //var adminId = AuthData.AdminIdField;
+
+            var model = await service.InsertAsync(new AdminInfo
+            {
+                Id = YitterHelper.GetYitId(),
+                Name = "测试" + $"{DateTime.Now:yyyy-MM-dd HH:mm:ss}",
+                Description = "Description" + Guid.NewGuid().ToString("n"),
+                Email = "Email",
+                Phone = "12345564",
+                Address = "湖北武汉",
+                City = "武汉",
+                Country = "武汉",
+                Province = "湖北",
+                Password = "2342",
+                IsDelete = false,
+
+            });
+
+            //var adminInfo = await service.GetUserAsync(model);
+
+            var list = await service.GetListAsync(new GetListAdminInfoRequest
+            {
+                //Name = "测试",
+                //Email = "Email",
+                //IsDelete = false,
+                //StartDateTime = DateTime.Now.AddDays(-1),
+                //EndDateTime = DateTime.Now.AddDays(1),
+                //IsDelete = true,
+                PageIndex = 1,
+                PageSize = 10,
+               
+            });
+            return Ok(list);
         }
 
         [HttpGet("Login")]
@@ -45,7 +76,7 @@ namespace WebApi.Controllers
             {
                 return Content("请输入密码");
             }
-            var userInfo = await service.GetUserAsync();
+            var userInfo = await service.GetUserAsync(123);
             await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
                 new ClaimsPrincipal(new ClaimsIdentity(
                     [

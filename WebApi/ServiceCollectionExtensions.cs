@@ -4,6 +4,8 @@ using Autofac.Core;
 using Microsoft.AspNetCore.Mvc;
 using Services;
 using Services.User;
+using SqlSugar;
+using Utility;
 using Utility.CustomerAttribute;
 using Module = Autofac.Module;
 
@@ -69,6 +71,88 @@ namespace WebApi
                 .PropertiesAutowired(new AutowiredPropertySelector());
         }
 
+        /// <summary>
+        /// 注册SqlSugar
+        /// </summary>
+        /// <param name="builder"></param>
+        public static void AddSqlSugar(this ContainerBuilder builder)
+        {
+            builder.Register(x =>
+            {
+                var config = new ConnectionConfig
+                {
+                    ConnectionString = GlobalContext.SystemConfig.DBConnectionString,
+                    DbType = DbType.Sqlite,
+                    IsAutoCloseConnection = true,
+                    InitKeyType = InitKeyType.Attribute,
+                    MoreSettings = new ConnMoreSettings
+                    {
+                        IsAutoRemoveDataCache = true,
+                        //SqliteCodeFirstEnableDefaultValue = true, //启用默认值
+                        //SqliteCodeFirstEnableDropColumn = true, //只支持.net core
+                        SqliteCodeFirstEnableDescription = true //启用备注
+                    },
+                    ConfigureExternalServices = new ConfigureExternalServices()
+                    {
+                        //DataInfoCacheService = new SqlSugarCache(), //配置我们创建的缓存类
+                        EntityService = (property, column) =>
+                        {
+                            var attributes = property.GetCustomAttributes(true); //get all attributes
+
+                            if (attributes.Any(it => it is SugarColumn) && column.DataType == "longtext")
+                            {
+                                column.DataType = "nvarchar(4000)";
+                            }
+                        }
+                    }
+                };
+                var sqlSugarClient = new SqlSugarClient(config);
+                sqlSugarClient.Aop.OnLogExecuted = (sql, pars) => //SQL执行完
+                {
+                    if (sql.StartsWith("SELECT"))
+                    {
+                        Console.ForegroundColor = ConsoleColor.Green;
+                        Console.WriteLine("[SELECT]-" + DateTime.Now.ToString("yyyy/MM/dd HH:mm:ss"));
+                    }
+
+                    if (sql.StartsWith("INSERT"))
+                    {
+                        Console.ForegroundColor = ConsoleColor.White;
+                        Console.WriteLine("[INSERT]-" + DateTime.Now.ToString("yyyy/MM/dd HH:mm:ss"));
+                    }
+
+                    if (sql.StartsWith("UPDATE"))
+                    {
+                        Console.ForegroundColor = ConsoleColor.Yellow;
+                        Console.WriteLine("[UPDATE]-" + DateTime.Now.ToString("yyyy/MM/dd HH:mm:ss"));
+                    }
+
+                    if (sql.StartsWith("DELETE"))
+                    {
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.WriteLine("[DELETE]-" + DateTime.Now.ToString("yyyy/MM/dd HH:mm:ss"));
+                    }
+
+                    Console.WriteLine($"执行库{sqlSugarClient.CurrentConnectionConfig.ConfigId}");
+                    Console.WriteLine("NeedTime-" + sqlSugarClient.Ado.SqlExecutionTime);
+                    //App.PrintToMiniProfiler("SqlSugar", "Info", sql + "\r\n" + db.Utilities.SerializeObject(pars.ToDictionary(it => it.ParameterName, it => it.Value)));
+                    Console.WriteLine("Content:" +
+                                      UtilMethods.GetSqlString(sqlSugarClient.CurrentConnectionConfig.DbType, sql,
+                                          pars));
+                    Console.WriteLine("---------------------------------");
+                    Console.WriteLine("");
+                };
+                sqlSugarClient.Ado.CommandTimeOut = GlobalContext.SystemConfig.DBCommandTimeout;
+                sqlSugarClient.Aop.OnError = (exp) =>
+                {
+                    SerilogHelper.Error(exp,"执行数据库操作错误");
+                    Console.WriteLine("Error:" + exp.Message);
+                };
+
+                return sqlSugarClient;
+
+            }).As<ISqlSugarClient>().SingleInstance(); // 或者使用SingleInstance(),  
+        }
     }
 
     /// <summary>
@@ -86,9 +170,22 @@ namespace WebApi
             ////批量自动注入,把需要注入层的程序集传参数,注入Service层的类
             //builder.BatchAutowired(typeof(ISingletonDependency).Assembly);
 
+            //需要注入的程序集
+            //string[] assemblyList = ["Services", "Repositories"];
+            //foreach (var item in assemblyList)
+            //{
+            //    // 获取当前程序集（或指定程序集）
+            //    var assemblyService = Assembly.Load(item);
+            //    // 自动注册所有以 "Service" 结尾的非泛型类
+            //    builder.RegisterAssemblyTypes(assemblyService)
+            //        .Where(t => t.Name.TrimEnd('s').EndsWith(item) && t is { IsGenericType: false, IsClass: true, IsAbstract: false })
+            //        .AsSelf()
+            //        .AsImplementedInterfaces()
+            //        .InstancePerLifetimeScope(); // Scoped 生命周期
+            //}
+
             // 获取当前程序集（或指定程序集）
             var assemblyService = Assembly.Load("Services");
-
             // 自动注册所有以 "Service" 结尾的非泛型类
             builder.RegisterAssemblyTypes(assemblyService)
                 .Where(t => t.Name.EndsWith("Service") && t is { IsGenericType: false, IsClass: true, IsAbstract: false })
@@ -96,14 +193,8 @@ namespace WebApi
                 .AsImplementedInterfaces()
                 .InstancePerLifetimeScope(); // Scoped 生命周期
 
-            // 自动注册泛型仓储（如 IRepository<T> -> Repository<T>）
-            //builder.RegisterGeneric(typeof(Repository<>))
-            //    .As(typeof(IRepository<>))
-            //    .InstancePerDependency(); // Transient 生命周期
-
             // 获取当前程序集（或指定程序集）
             var assemblyRepository = Assembly.Load("Repositories");
-
             // 自动注册所有以 "Service" 结尾的非泛型类
             builder.RegisterAssemblyTypes(assemblyRepository)
                 .Where(t => t.Name.EndsWith("Repository") && t is { IsGenericType: false, IsClass: true, IsAbstract: false })

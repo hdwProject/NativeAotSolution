@@ -19,6 +19,7 @@ namespace Repositories.Admin
         {
             return await Db.Queryable<AdminInfo>().Where(x => x.Name == name).FirstAsync();
         }
+
         /// <summary>
         /// 根据Id获取管理员信息
         /// </summary>

@@ -11,10 +11,10 @@ namespace Utility
         /// 雪花算法，获取18位不重复的数字
         /// </summary>
         /// <returns></returns>
-        public static string GetYitId()
+        public static long GetYitId()
         {
             var newId = YitIdHelper.NextId();
-            return newId + "";
+            return newId;
         }
 
         /// <summary>

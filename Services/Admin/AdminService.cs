@@ -1,75 +1,72 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Text;
 using System.Threading.Tasks;
 using Entity.Admin;
 using Entity.User;
 using Repositories.Admin;
+using SDK;
+using SDK.Response.AdminInfo;
+using SqlSugar;
 
 namespace Services.Admin
 {    
     public class AdminService(AdminInfoRepository adminInfoRepository) : ISingletonDependency
     {
+        /// <summary>
+        /// 获取用户信息
+        /// </summary>
+        /// <returns></returns>
+        public async Task<AdminInfo> GetUserAsync(long id) 
+        {
+            return await adminInfoRepository.FindEntity(x=> x.Id == id);
+        }
 
         /// <summary>
         /// 获取用户信息
         /// </summary>
         /// <returns></returns>
-        public async Task<AdminInfo> GetUserAsync() 
-        { 
-            var adminInfo = await adminInfoRepository.GetById(1212441110);
-
-            var model = new AdminInfo
-            {
-                Name = "测试",
-                Description = "Description",
-                Email = "Email",
-                Phone = "12345564",
-                Address = "湖北武汉",
-                City = "武汉"
-
-            };
-            return await Task.FromResult(model);
+        public async Task<long> InsertAsync(AdminInfo model)
+        {
+            var adminInfo = await adminInfoRepository.Insert(model);
+            return adminInfo.Id;
         }
 
         /// <summary>
         /// 获取列表
         /// </summary>
         /// <returns></returns>
-        public async Task<List<AdminInfo>> GetUserListAsync()
+        public async Task<BasePagerResponse<AdminInfo>> GetListAsync(GetListAdminInfoRequest request)
         {
-            var userList = new List<AdminInfo>
+            RefAsync<int> totalCount = 0;//REF和OUT不支持异步,想要真的异步这是最优解
+
+            var query = adminInfoRepository.Db.Queryable<AdminInfo>();
+            if (!string.IsNullOrWhiteSpace(request.Name))
             {
-                new AdminInfo()
-                {
-                    Name = "测试-0",
-                    Description= "Description0",
-                    Email = "Email-0",
-                    Phone ="12345564",
-                    Address="湖北武汉",
-                    City ="武汉"
-                },
-                new AdminInfo()
-                {
-                    Name = "测试-1",
-                    Description= "Description1",
-                    Email = "Email-1",
-                    Phone ="12345564",
-                    Address="湖北武汉",
-                    City ="武汉"
-                },
-                new AdminInfo()
-                {
-                    Name = "测试-2",
-                    Description= "Description2",
-                    Email = "Email-2",
-                    Phone ="12345564",
-                    Address="湖北武汉-2",
-                    City ="武汉"
-                },
-            };
-            return await Task.FromResult(userList);
+                query = query.Where(x => x.Name.Contains(request.Name));
+            }
+            if(!string.IsNullOrWhiteSpace(request.Email))
+            {
+                query = query.Where(x => x.Email.Contains(request.Email));
+            }
+            if(request.IsDelete.HasValue)
+            {
+                query = query.Where(x => x.IsDelete == request.IsDelete.Value);
+            }
+
+            if (request.StartDateTime.HasValue)
+            {
+                query = query.Where(x => x.CreateDateTime >= request.StartDateTime.Value);
+            }
+            if (request.EndDateTime.HasValue)
+            {
+                query = query.Where(x => x.CreateDateTime <= request.EndDateTime.Value);
+            }
+            var list = await query.OrderByPropertyName(request.OrderByField, request.OrderByType).ToOffsetPageAsync(request.PageIndex, request.PageSize, totalCount);
+
+            return new BasePagerResponse<AdminInfo>{List = list, PageNo = request.PageIndex, PageSize = request.PageSize, TotalCount = totalCount};
         }
         
     }

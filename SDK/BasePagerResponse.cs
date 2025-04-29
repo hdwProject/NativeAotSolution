@@ -27,5 +27,21 @@ namespace SDK
         /// 总记录数
         /// </summary>
         public int? TotalCount { get; set; } = 0;
+
+        /// <summary>
+        /// 总页数
+        /// </summary>
+        public int? TotalPageSize
+        {
+            get
+            {
+                if (TotalCount > 0)
+                {
+                    return TotalCount % PageSize == 0 ? TotalCount / PageSize : TotalCount / PageSize + 1;
+                }
+
+                return 0;
+            }
+        }
     }
 }

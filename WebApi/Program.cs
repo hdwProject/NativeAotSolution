@@ -23,7 +23,7 @@ var builder = WebApplication.CreateBuilder(args);
 #region 配置Serilog
 
 Log.Logger = new LoggerConfiguration()
-    .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+    .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
     .Enrich.FromLogContext()
     .WriteTo.Console()
     .WriteTo.File("logs/log-.txt", restrictedToMinimumLevel: LogEventLevel.Information, rollingInterval: RollingInterval.Day, rollOnFileSizeLimit: true, 
@@ -109,23 +109,7 @@ builder.Services.AddControllers();//.AddControllersAsServices();
 builder.Host.UseServiceProviderFactory(new AutofacServiceProviderFactory()).ConfigureContainer<ContainerBuilder>(options =>
 {
     options.RegisterModule(new RegisterAutofacModule());
-    options.Register(_ =>
-    {
-        var config = new ConnectionConfig
-        {
-            ConnectionString = GlobalContext.SystemConfig.DBConnectionString,
-            DbType = DbType.Sqlite,
-            IsAutoCloseConnection = true,
-            InitKeyType = InitKeyType.Attribute,
-            MoreSettings = new ConnMoreSettings
-            {
-                SqliteCodeFirstEnableDefaultValue = true, //启用默认值
-                SqliteCodeFirstEnableDropColumn = true, //只支持.net core
-                SqliteCodeFirstEnableDescription = true //启用备注
-            }
-        };
-        return new SqlSugarScope(config);
-    }).AsSelf().As<ISqlSugarClient>().SingleInstance(); // 或者使用SingleInstance(),  
+    options.AddSqlSugar();
 
     //options.AutofacConfigureContainer(["Services"], typeof(Controller), typeof(IDependency), typeof(Program));
     //MyServiceCollectionExtensions.AutofacConfigureContainer(options, ["Services"], typeof(Controller), typeof(IDependency), typeof(Program));
