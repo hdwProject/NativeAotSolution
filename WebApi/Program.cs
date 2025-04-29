@@ -109,7 +109,6 @@ builder.Services.AddControllers();//.AddControllersAsServices();
 builder.Host.UseServiceProviderFactory(new AutofacServiceProviderFactory()).ConfigureContainer<ContainerBuilder>(options =>
 {
     options.RegisterModule(new RegisterAutofacModule());
-    options.AddSqlSugar();
 
     //options.AutofacConfigureContainer(["Services"], typeof(Controller), typeof(IDependency), typeof(Program));
     //MyServiceCollectionExtensions.AutofacConfigureContainer(options, ["Services"], typeof(Controller), typeof(IDependency), typeof(Program));

@@ -70,13 +70,52 @@ namespace WebApi
                 .InstancePerLifetimeScope()
                 .PropertiesAutowired(new AutowiredPropertySelector());
         }
+        
+    }
 
-        /// <summary>
-        /// 注册SqlSugar
-        /// </summary>
-        /// <param name="builder"></param>
-        public static void AddSqlSugar(this ContainerBuilder builder)
+    /// <summary>
+    /// Autofac模块注册
+    /// </summary>
+    public class RegisterAutofacModule : Module
+    {
+        protected override void Load(ContainerBuilder builder)
         {
+            #region 如果需要在ControllerBase中注册Service实例，则需要使用下面的代码，同时需要在Program.cs中添加AddControllersAsServices()方法或者
+
+            ////获取所有控制器类型并使用属性注入
+            //var controllersTypeAssembly = typeof(Program).Assembly.GetExportedTypes()
+            //    .Where(type => typeof(ControllerBase).IsAssignableFrom(type)).ToArray();
+            //builder.RegisterTypes(controllersTypeAssembly).PropertiesAutowired();
+
+            ////批量自动注入,把需要注入层的程序集传参数,注入Service层的类
+            //builder.BatchAutowired(typeof(ISingletonDependency).Assembly);
+
+            #endregion
+
+
+            #region 反射注册实例
+
+            // 获取当前程序集（或指定程序集）
+            var assemblyService = Assembly.Load("Services");
+            // 自动注册所有以 "Service" 结尾的非泛型类
+            builder.RegisterAssemblyTypes(assemblyService)
+                .Where(t => t.Name.EndsWith("Service") && t is { IsGenericType: false, IsClass: true, IsAbstract: false })
+                .AsSelf()
+                .AsImplementedInterfaces()
+                .InstancePerLifetimeScope(); // Scoped 生命周期
+
+            // 获取当前程序集（或指定程序集）
+            var assemblyRepository = Assembly.Load("Repositories");
+            // 自动注册所有以 "Service" 结尾的非泛型类
+            builder.RegisterAssemblyTypes(assemblyRepository)
+                .Where(t => t.Name.EndsWith("Repository") && t is { IsGenericType: false, IsClass: true, IsAbstract: false })
+                .AsSelf()
+                .AsImplementedInterfaces()
+                .InstancePerLifetimeScope(); // Scoped 生命周期
+            #endregion
+
+            #region 注册SqlSugar
+
             builder.Register(x =>
             {
                 var config = new ConnectionConfig
@@ -145,62 +184,16 @@ namespace WebApi
                 sqlSugarClient.Ado.CommandTimeOut = GlobalContext.SystemConfig.DBCommandTimeout;
                 sqlSugarClient.Aop.OnError = (exp) =>
                 {
-                    SerilogHelper.Error(exp,"执行数据库操作错误");
+                    SerilogHelper.Error(exp, "执行数据库操作错误");
                     Console.WriteLine("Error:" + exp.Message);
                 };
 
                 return sqlSugarClient;
 
-            }).As<ISqlSugarClient>().SingleInstance(); // 或者使用SingleInstance(),  
-        }
-    }
+            }).As<ISqlSugarClient>().SingleInstance(); // 或者使用SingleInstance(), 
 
-    /// <summary>
-    /// Autofac模块注册
-    /// </summary>
-    public class RegisterAutofacModule : Module
-    {
-        protected override void Load(ContainerBuilder builder)
-        {
-            ////获取所有控制器类型并使用属性注入
-            //var controllersTypeAssembly = typeof(Program).Assembly.GetExportedTypes()
-            //    .Where(type => typeof(ControllerBase).IsAssignableFrom(type)).ToArray();
-            //builder.RegisterTypes(controllersTypeAssembly).PropertiesAutowired();
+            #endregion
 
-            ////批量自动注入,把需要注入层的程序集传参数,注入Service层的类
-            //builder.BatchAutowired(typeof(ISingletonDependency).Assembly);
-
-            //需要注入的程序集
-            //string[] assemblyList = ["Services", "Repositories"];
-            //foreach (var item in assemblyList)
-            //{
-            //    // 获取当前程序集（或指定程序集）
-            //    var assemblyService = Assembly.Load(item);
-            //    // 自动注册所有以 "Service" 结尾的非泛型类
-            //    builder.RegisterAssemblyTypes(assemblyService)
-            //        .Where(t => t.Name.TrimEnd('s').EndsWith(item) && t is { IsGenericType: false, IsClass: true, IsAbstract: false })
-            //        .AsSelf()
-            //        .AsImplementedInterfaces()
-            //        .InstancePerLifetimeScope(); // Scoped 生命周期
-            //}
-
-            // 获取当前程序集（或指定程序集）
-            var assemblyService = Assembly.Load("Services");
-            // 自动注册所有以 "Service" 结尾的非泛型类
-            builder.RegisterAssemblyTypes(assemblyService)
-                .Where(t => t.Name.EndsWith("Service") && t is { IsGenericType: false, IsClass: true, IsAbstract: false })
-                .AsSelf()
-                .AsImplementedInterfaces()
-                .InstancePerLifetimeScope(); // Scoped 生命周期
-
-            // 获取当前程序集（或指定程序集）
-            var assemblyRepository = Assembly.Load("Repositories");
-            // 自动注册所有以 "Service" 结尾的非泛型类
-            builder.RegisterAssemblyTypes(assemblyRepository)
-                .Where(t => t.Name.EndsWith("Repository") && t is { IsGenericType: false, IsClass: true, IsAbstract: false })
-                .AsSelf()
-                .AsImplementedInterfaces()
-                .InstancePerLifetimeScope(); // Scoped 生命周期
 
         }
         

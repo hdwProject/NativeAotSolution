@@ -19,7 +19,6 @@ namespace Repositories
            
             Tenant = scope.AsTenant();
             Db = Tenant.GetConnectionScopeWithAttr<TEntity>();
-
             //使用CodeFirst初始化表
             Db.CodeFirst.InitTables<TEntity>();
 

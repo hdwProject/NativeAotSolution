@@ -48,7 +48,7 @@ namespace Entity.Admin
         /// 省
         /// </summary>
         [SugarColumn(ColumnDataType = "nvarchar(50)", ColumnName = "Province", ColumnDescription = "省")]
-        public string? Province { get; set; }
+        public string? Province { get; set; } = string.Empty;
 
         /// <summary>
         /// 市
